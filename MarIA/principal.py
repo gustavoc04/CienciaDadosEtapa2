@@ -18,7 +18,7 @@ class Ambiente:
         self.contador_pulo = 0
 
     def calcular_fitness(self):
-        return self.mario.score + 2 * self.mario.level_progress + self.mario.time_left 
+        return self.mario.score + 2 * self.mario.level_progress + self.mario.time_left
 
     def fim_de_jogo(self):
         return self.mario.lives_left == 1 or self.mario.score < 0
@@ -43,9 +43,7 @@ class Ambiente:
         acoes_liberacao = {
             0: [WindowEvent.RELEASE_ARROW_LEFT],
             1: [WindowEvent.RELEASE_ARROW_RIGHT],
-            2: [WindowEvent.RELEASE_ARROW_DOWN],  # Liberação da ação de abaixar
-            3: [WindowEvent.RELEASE_ARROW_RIGHT, WindowEvent.RELEASE_BUTTON_A],
-            4: [WindowEvent.RELEASE_ARROW_RIGHT, WindowEvent.RELEASE_BUTTON_A]
+            2: [WindowEvent.RELEASE_BUTTON_A]
         }
 
         acao = acoes.get(indice_acao, [WindowEvent.PASS])
@@ -92,7 +90,7 @@ class Ambiente:
 
 class Individuo:
     def __init__(self):
-        self.acoes = [(random.choices([0, 1, 2, 3], weights=[1.5, 2, 4, 1])[0], random.randint(1, 10)) for _ in range(5000)]
+        self.acoes = [(random.choices([0, 1, 2, 3], weights=[4, 4, 3, 5])[0], random.randint(1, 10)) for _ in range(5000)]
 
         self.fitness = 0
         self.pontos_tempo = 0
