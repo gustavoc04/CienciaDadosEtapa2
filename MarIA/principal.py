@@ -36,9 +36,8 @@ class Ambiente:
         acoes = {
             0: [WindowEvent.PRESS_ARROW_LEFT],
             1: [WindowEvent.PRESS_ARROW_RIGHT],
-            2: [WindowEvent.PRESS_ARROW_DOWN],  # Ação de abaixar
-            3: [WindowEvent.PRESS_ARROW_RIGHT, WindowEvent.PRESS_BUTTON_A],  # Pulo curto com movimento para a direita
-            4: [WindowEvent.PRESS_ARROW_RIGHT, WindowEvent.PRESS_BUTTON_A]   # Pulo longo com movimento para a direita
+            3: [WindowEvent.PRESS_BUTTON_A],
+
         }
         acoes_liberacao = {
             0: [WindowEvent.RELEASE_ARROW_LEFT],
@@ -90,7 +89,7 @@ class Ambiente:
 
 class Individuo:
     def __init__(self):
-        self.acoes = [(random.choices([0, 1, 2, 3], weights=[4, 4, 3, 5])[0], random.randint(1, 10)) for _ in range(5000)]
+        self.acoes = [(random.choices([0, 1, 3], weights=[1.5, 3.5, 5])[0], random.randint(1, 10)) for _ in range(5000)]
 
         self.fitness = 0
         self.pontos_tempo = 0
@@ -127,7 +126,7 @@ class Individuo:
 def avaliar_fitness(individuo, ambiente):
     fitness = individuo.avaliar(ambiente)
     fitness_normalizado = fitness / 10000
-    fitness_peso_pulo = fitness_normalizado + individuo.movimentos_direita * 5  # Adicionando mais peso para os movimentos para a direita
+    fitness_peso_pulo = fitness_normalizado + individuo.movimentos_direita * 5 
     return fitness_peso_pulo
 
 def iniciar_individuos(populacao):
@@ -135,10 +134,14 @@ def iniciar_individuos(populacao):
 
 def selecao(populacao):
     tamanho_torneio = 3
-    print("Population size:", len(populacao))  # Debug print
+    print("Population size:", len(populacao))  
     selecionadas = []
     while len(selecionadas) < len(populacao):
         torneio = random.sample(populacao, tamanho_torneio)
+        # Introduzindo a probabilidade de seleção do segundo melhor indivíduo
+        probabilidade_segundo_melhor = 0.2  # Ajuste conforme necessário
+        if random.random() < probabilidade_segundo_melhor:
+            torneio.remove(max(torneio, key=lambda individuo: individuo.fitness))
         vencedor = max(torneio, key=lambda individuo: individuo.fitness)
         selecionadas.append(vencedor)
     return selecionadas
@@ -172,23 +175,22 @@ def mutacao(individuo, taxa_mutacao=0.1):
             individuo.acoes[i] = (acao_mutada, duracao_mutada)
 
 def imprimir_acoes_individuo(individuo):
-    nomes_acoes = ["esquerda", "direita", "direita e pulo curto", "direita e pulo longo"]
+    nomes_acoes = ["esquerda", "direita", "indefinido", "pulo", "abaixar"]
     acoes = [f"{nomes_acoes[acao]} por {duracao} ticks" for acao, duracao in individuo.acoes]
     return acoes
 
-def algoritmo_genetico(populacao, ambiente, geracoes=100, tamanho_populacao=20):
-    tamanho_inicial_populacao = tamanho_populacao
-    melhor_individuo = populacao[0]  # Inicialize com o primeiro indivíduo da população
-    melhor_fitness = melhor_individuo.fitness  # Inicialize com o fitness do primeiro indivíduo
+def algoritmo_genetico(populacao, ambiente, geracoes=100, tamanho_populacao=10):
+    melhor_individuo = None
+    melhor_fitness = float('-inf')
 
     for geracao in range(geracoes):
         for individuo in populacao:
             individuo.fitness = avaliar_fitness(individuo, ambiente)
-            print(f"Fitness: {individuo.fitness}")
+            print(f"Fitness: {individuo.fitness}\n")
 
         selecionadas = selecao(populacao)
         descendentes = []
-        while len(descendentes) < tamanho_populacao - 1:  # Manter apenas o melhor indivíduo da geração anterior
+        while len(descendentes) < tamanho_populacao:
             pai1, pai2 = random.sample(selecionadas, 2)
             filho1, filho2 = cruzamento(pai1, pai2)
             descendentes.extend([filho1, filho2])
@@ -196,30 +198,27 @@ def algoritmo_genetico(populacao, ambiente, geracoes=100, tamanho_populacao=20):
         for filho in descendentes:
             mutacao(filho)
 
-        # Mantenha o melhor indivíduo da geração anterior
-        populacao = [melhor_individuo] + iniciar_individuos(tamanho_populacao - 1)
+        populacao = selecionadas[:tamanho_populacao//2] + descendentes[:tamanho_populacao//2]
 
-        fitness_atual = max(individuo.fitness for individuo in populacao if individuo is not None)
-        individuo_atual = max(populacao, key=lambda n: n.fitness if n is not None else float('-inf'))
-        if fitness_atual > melhor_fitness:
-            melhor_fitness = fitness_atual
-            melhor_individuo = individuo_atual
+        # Atualiza o melhor indivíduo da geração
+        melhor_individuo_da_geracao = max(populacao, key=lambda individuo: individuo.fitness)
+        if melhor_individuo_da_geracao.fitness > melhor_fitness:
+            melhor_individuo = melhor_individuo_da_geracao
+            melhor_fitness = melhor_individuo_da_geracao.fitness
 
+        print("--------------------------------------------------------------")
         print(f"Geração {geracao}: Melhor Fitness {melhor_fitness}")
-        print(f"Melhores Ações: {imprimir_acoes_individuo(melhor_individuo)}")
+        print("--------------------------------------------------------------")
 
-        # Exibir melhor fitness ao final de cada jogo
-        if ambiente.fim_de_jogo():
-            print(f"Melhor fitness ao final do jogo: {melhor_individuo.fitness}")
-
-        # Repopulação
-        populacao.sort(key=lambda x: x.fitness if x is not None else float('-inf'), reverse=True)
-        melhores = populacao[:tamanho_inicial_populacao // 2]
-        descendentes.sort(key=lambda x: x.fitness, reverse=True)
-        proxima_geracao = melhores + descendentes[:tamanho_inicial_populacao - len(melhores)]
-        populacao = proxima_geracao
+    # Log final do melhor indivíduo após todas as gerações
+    print("==============================================================")
+    print(f"Melhor Fitness após {geracoes} gerações: {melhor_fitness}")
+    print(f"Ações do Melhor Indivíduo: {imprimir_acoes_individuo(melhor_individuo)}")
+    print("==============================================================")
 
     return melhor_individuo
+
+
 
 
 
@@ -233,5 +232,5 @@ def rodar_melhor_modelo(ambiente, melhor_individuo):
         print("Loop completado, reiniciando...")
 
 ambiente = Ambiente(modo_silencioso=False)
-populacao = iniciar_individuos(20)  
+populacao = iniciar_individuos(10)  
 algoritmo_genetico(populacao, ambiente)
